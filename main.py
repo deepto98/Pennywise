@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import re
 import json
 import logging
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # Load environment variables from .env file
 load_dotenv()
@@ -162,6 +164,29 @@ async def columns(ctx: interactions.SlashContext):
     except Exception as e:
         logger.error(f"Error in /columns: {e}", exc_info=True)
         await ctx.send("Server error", ephemeral=True)
+
+# --- Web server for Render web service compatibility ---
+PORT = int(os.getenv("PORT", 8080))
+
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/" or self.path == "/healthz":
+            self.send_response(200)
+            self.send_header("Content-type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Pennywise Discord bot is running!")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+def start_web_server():
+    server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
+    logger.info(f"Starting web server on port {PORT} for Render web service mode...")
+    server.serve_forever()
+
+# Start web server in a separate thread
+web_thread = threading.Thread(target=start_web_server, daemon=True)
+web_thread.start()
 
 @bot.event
 async def on_ready():
