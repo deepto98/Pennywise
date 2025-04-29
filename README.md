@@ -1,39 +1,34 @@
-# Discord Expense Bot
+# Pennywise
 
 A general-purpose Discord bot to log expenses to Google Sheets using slash commands.
 
-## Features
-- Add expenses with `/expense-bot add <amount>`
-- Saves user, amount, and timestamp to your Google Sheet
-- Easy setup for anyone (just provide your tokens and credentials)
+## How to Use (User's Guide)
 
-## Setup
+1. **Invite the Bot** to your Discord server (with `applications.commands` and `bot` scopes).
+2. **Start the Bot** (the bot owner/admin will run the bot for your server).
+3. **Create a Google Sheet** (empty or new is fine).
+4. **Run `/setup` in Discord** and paste your Google Spreadsheet URL when prompted.
+5. **Give Access:**
+    - The bot will reply with an email address (service account).
+    - In your Google Sheet, click **Share > Add** that email as an **Editor**.
+6. *(Optional)* Run `/columns` to add the `Time, User, Amount` headers to your sheet.
+7. **Add Expenses:** Use `/add amount:<number>` to log an expense (e.g., `/add amount:20`).
 
-1. **Clone this repo**
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Create a Google Cloud project**
-   - Enable Google Sheets API
-   - Create a Service Account and download the JSON credentials
-   - Share your Google Sheet with the service account email
-4. **Create a Google Sheet**
-   - Note its ID (in the URL)
-   - Add column headers: `Timestamp`, `User`, `Amount`
-5. **Create a Discord bot**
-   - Get your bot token from the Discord Developer Portal
-   - Invite the bot to your server with `applications.commands` and `bot` scopes
-6. **Configure environment**
-   - Copy `.env.example` to `.env` and fill in your values
-7. **Run the bot**
-   ```bash
-   python main.py
-   ```
+---
 
-## Usage
-- Use `/expense-bot add <amount>` in any server where the bot is present.
+## Example Workflow
+- `/setup` → paste your sheet URL
+- Bot replies: "Go to Share > Add [bot-email] as an Editor."
+- In Google Sheets: Share with that email
+- `/columns` (optional)
+- `/add amount:50` → logs your expense
 
-## Notes
-- Each deployment is tied to one Google Sheet. For multi-user sheets, share access accordingly.
-- The bot is general-purpose: just set up your own tokens and credentials.
+## No tokens or credentials needed from the user — just a sheet URL and sharing!
+
+## Troubleshooting
+- If you see "Server error", double check that you shared your sheet with the bot's email as Editor.
+- You can re-run `/setup` at any time to change the sheet.
+
+---
+
+*Bot setup and admin instructions are in the code repository.*

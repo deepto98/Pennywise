@@ -1,0 +1,10 @@
+# Python cache and venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+# dotenv and credentials (remove from here if you want to include in the image)
+.env
+credentials.json
