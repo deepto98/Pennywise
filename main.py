@@ -6,12 +6,34 @@ from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
 import re
 import json
+import logging
 
 # Load environment variables from .env file
 load_dotenv()
 
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+)
+logger = logging.getLogger(__name__)
+
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-GOOGLE_SHEETS_CREDENTIALS = os.getenv("GOOGLE_SHEETS_CREDENTIALS")
+
+# Build Google credentials dict from environment variables
+GOOGLE_CREDS_DICT = {
+    "type": os.getenv("GOOGLE_CREDENTIALS_TYPE"),
+    "project_id": os.getenv("GOOGLE_CREDENTIALS_PROJECT_ID"),
+    "private_key_id": os.getenv("GOOGLE_CREDENTIALS_PRIVATE_KEY_ID"),
+    "private_key": os.getenv("GOOGLE_CREDENTIALS_PRIVATE_KEY").replace('\\n', '\n'),
+    "client_email": os.getenv("GOOGLE_CREDENTIALS_CLIENT_EMAIL"),
+    "client_id": os.getenv("GOOGLE_CREDENTIALS_CLIENT_ID"),
+    "auth_uri": os.getenv("GOOGLE_CREDENTIALS_AUTH_URI"),
+    "token_uri": os.getenv("GOOGLE_CREDENTIALS_TOKEN_URI"),
+    "auth_provider_x509_cert_url": os.getenv("GOOGLE_CREDENTIALS_AUTH_PROVIDER_X509_CERT_URL"),
+    "client_x509_cert_url": os.getenv("GOOGLE_CREDENTIALS_CLIENT_X509_CERT_URL"),
+    "universe_domain": os.getenv("GOOGLE_CREDENTIALS_UNIVERSE_DOMAIN"),
+}
 
 SETUP_FILE = "user_sheet_map.json"
 
@@ -26,7 +48,8 @@ def save_user_sheet(user_id, server_id, sheet_id):
         data[key] = sheet_id
         with open(SETUP_FILE, "w") as f:
             json.dump(data, f)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to save user sheet: {e}", exc_info=True)
         pass  # Silent fail, handled in command
 
 def get_user_sheet(user_id, server_id):
@@ -37,7 +60,8 @@ def get_user_sheet(user_id, server_id):
             data = json.load(f)
         key = f"{user_id}_{server_id}"
         return data.get(key)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to get user sheet: {e}", exc_info=True)
         return None
 
 # Google Sheets setup
@@ -46,11 +70,15 @@ def get_sheet(sheet_id):
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
     ]
-    creds = Credentials.from_service_account_file(GOOGLE_SHEETS_CREDENTIALS, scopes=scopes)
-    gc = gspread.authorize(creds)
-    sh = gc.open_by_key(sheet_id)
-    worksheet = sh.sheet1
-    return worksheet
+    try:
+        creds = Credentials.from_service_account_info(GOOGLE_CREDS_DICT, scopes=scopes)
+        gc = gspread.authorize(creds)
+        sh = gc.open_by_key(sheet_id)
+        worksheet = sh.sheet1
+        return worksheet
+    except Exception as e:
+        logger.error(f"Failed to get sheet: {e}", exc_info=True)
+        raise
 
 # Discord bot setup
 bot = interactions.Client(token=DISCORD_TOKEN, intents=interactions.Intents.DEFAULT)
@@ -83,7 +111,8 @@ async def add(ctx: interactions.SlashContext, amount: float = None):
         human_time = now.strftime("%-m/%-d/%y [%I:%M%p]").lower().replace(':0', ':')
         worksheet.append_row([human_time, user, amount])
         await ctx.send(f"💸 Added expense of **{amount}** for **{user}**! Your wallet thanks you. 🪙", ephemeral=True)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error in /add: {e}", exc_info=True)
         await ctx.send("Server error", ephemeral=True)
 
 @interactions.slash_command(
@@ -108,11 +137,10 @@ async def setup(ctx: interactions.SlashContext, spreadsheet_url: str):
         sheet_id = match.group(1)
         save_user_sheet(user_id, server_id, sheet_id)
         # Show client_email from credentials.json
-        with open(GOOGLE_SHEETS_CREDENTIALS) as f:
-            creds = json.load(f)
-        email = creds.get("client_email", "<service account email>")
+        email = GOOGLE_CREDS_DICT.get("client_email", "<service account email>")
         await ctx.send(f"Your spreadsheet is setup for transactions! Go to Share > Add **{email}** as an Editor.", ephemeral=True)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error in /setup: {e}", exc_info=True)
         await ctx.send("Server error", ephemeral=True)
 
 @interactions.slash_command(
@@ -131,12 +159,14 @@ async def columns(ctx: interactions.SlashContext):
         worksheet = get_sheet(sheet_id)
         worksheet.update('A1:C1', [["Time", "User", "Amount"]])
         await ctx.send("✅ Added columns: Time, User, Amount.", ephemeral=True)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error in /columns: {e}", exc_info=True)
         await ctx.send("Server error", ephemeral=True)
 
 @bot.event
 async def on_ready():
-    print(f'Bot connected as {bot.me.name}')
+    logger.info(f'Bot connected as {bot.me.name}')
 
 if __name__ == "__main__":
+    logger.info("Starting bot...")
     bot.start()

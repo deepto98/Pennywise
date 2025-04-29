@@ -1,4 +1,4 @@
 ./pennywise
-.env
-credentials.json
+ credentials.json
 ./videos/
+.env
